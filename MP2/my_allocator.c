@@ -64,13 +64,17 @@ double log_base_2( double n )
 
 unsigned int get_block_size(unsigned int v)
 { //We perform a bitwise or operations to get the correct block size for the given input.
-	v--;
+  v--;
 	v = v | v >> 1;
 	v = v | v >> 2;
 	v = v | v >> 4;
 	v = v | v >> 8;
 	v = v | v >> 16;
 	v++;
+  if (block_size > v)
+  {
+    v = block_size;
+  }
 	return v;
 }
 
@@ -135,7 +139,8 @@ int add_node(struct node* new_node,int position)
 
 int split_node (int position)
 { // This function breaks down large memory blocks to smaller memory blocks to reduce fragmentation.
-	struct node* temp = free_list[position];
+  printf("Splitting Node at position: %d\n", position);
+  struct node* temp = free_list[position];
 	struct node* prev = NULL;
   int returnVal = 1; //Fail by default
 
@@ -167,11 +172,13 @@ int split_node (int position)
   	returnVal = 0;
   }
 
+  print_free_nodes();
   return returnVal;
 }
 
 int combine_nodes()
 { //This is a cleanup for the free_list to ensure that nodes that can be combined are merged.
+  printf("Combinining Nodes ---------------------- \n");
 	for(int i = free_list_size - 1; i > -1; --i){
 		struct node* temp = free_list[i];
 		struct node* two_nodes_ahead = NULL;
@@ -206,6 +213,8 @@ int combine_nodes()
 			}
 		}
 	}
+
+  print_free_nodes();
 	return 0;
 }
 
@@ -322,7 +331,7 @@ extern Addr my_malloc(unsigned int _length)
   	offset++;
 
   	if(offset >= free_list_size)
-    {
+    { // Check also to avoid seg faults by out-of-range errors.
   		break;
   	}
 	}

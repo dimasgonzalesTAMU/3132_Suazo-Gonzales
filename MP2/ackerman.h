@@ -1,4 +1,4 @@
-/*
+/* 
     File: ackerman.h
 
     Author: R. Bettati
@@ -16,7 +16,7 @@
 #define _ackerman_h_
 
 /*--------------------------------------------------------------------------*/
-/* DATA STRUCTURES */
+/* DATA STRUCTURES */ 
 /*--------------------------------------------------------------------------*/
 
     /* -- (none) -- */
@@ -38,11 +38,11 @@
 /* MODULE ackerman */
 /*--------------------------------------------------------------------------*/
 
-extern void ackerman_main(int n_arg, int m_arg);
+extern void ackerman_main();
 /* Asks user for parameters n and m and computes the result of the
    (highly recursive!) ackerman function. During every recursion step,
    it allocates and de-allocates a portion of memory with the use of the
    memory allocator defined in module "my_allocator.H".
-*/
+*/ 
 
 #endif
