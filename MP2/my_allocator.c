@@ -51,6 +51,7 @@ unsigned int memory_size;
 unsigned int block_size;
 struct node** free_list;
 int free_list_size;
+int used_memory;
 
 /*--------------------------------------------------------------------------*/
 /* FUNCTIONS FOR MODULE MY_ALLOCATOR */
@@ -137,9 +138,85 @@ int add_node(struct node* new_node,int position)
 	return 0;
 }
 
+void set_left_or_right_on_combine(struct node* new_node)
+{
+  int size_of_node = sizeof(new_node);
+  int locationDiff = (new_node - (struct node *)memory_start_address) * 16;
+  int distanceQuotient = locationDiff / new_node->size;
+  int remndr = distanceQuotient % 2;
+
+  if (remndr == 1)
+  {
+    new_node->is_left = false;
+  }
+  else
+  {
+    new_node->is_left = true;
+  }
+}
+
+int add_node_from_combine(struct node* new_node,int position)
+{
+	struct node* temp = free_list[position];
+	struct node* prev = NULL;
+
+	if(temp == NULL)
+  { //Exit and return the first position subce the free list is most likely empty
+		free_list[position] = new_node;
+		new_node->size = (memory_size/pow(2,position));
+		new_node->is_free = true;
+		new_node->next = NULL;
+    set_left_or_right_on_combine(new_node);
+		return 0;
+	}
+
+	while(temp < new_node && temp->next != NULL)
+  { //Look for position to insert new node.
+		prev = temp;
+		temp = temp->next;
+	}
+
+	if(prev == NULL)
+  { // Check if prev node is null to know what side to begin insertion
+		if(temp > new_node)
+    { // Check if the address of temp is after new node
+			free_list[position] = new_node;
+			free_list[position]->size = (memory_size / pow(2,position));
+			free_list[position]->is_free = true;
+			free_list[position]->next = temp;
+		}
+		else
+    {
+			free_list[position]->next = new_node;
+			free_list[position]->next->size = (memory_size / pow(2,position));
+			free_list[position]->next->is_free = true;
+			free_list[position]->next->next = NULL;
+		}
+	}
+	else
+  {
+		if(temp < new_node && temp->next == NULL)
+    { // Check for the end of the list
+			temp->next = new_node;
+			temp->next->is_free = true;
+			temp->next->size = (memory_size/pow(2,position));
+			temp->next->next = NULL;
+      free_list[position]->is_left = false;
+		}
+		else
+    { // if the temp address is after the new node then insert between prev and temp
+  		prev->next = new_node;
+  		prev->next->size = (memory_size/pow(2,position));
+  		prev->next->is_free = true;
+  		prev->next->next = temp;
+		}
+	}
+  set_left_or_right_on_combine(new_node);
+	return 0;
+}
+
 int split_node (int position)
 { // This function breaks down large memory blocks to smaller memory blocks to reduce fragmentation.
-  printf("Splitting Node at position: %d\n", position);
   struct node* temp = free_list[position];
 	struct node* prev = NULL;
   int returnVal = 1; //Fail by default
@@ -172,13 +249,11 @@ int split_node (int position)
   	returnVal = 0;
   }
 
-  print_free_nodes();
   return returnVal;
 }
 
 int combine_nodes()
 { //This is a cleanup for the free_list to ensure that nodes that can be combined are merged.
-  printf("Combinining Nodes ---------------------- \n");
 	for(int i = free_list_size - 1; i > -1; --i){
 		struct node* temp = free_list[i];
 		struct node* two_nodes_ahead = NULL;
@@ -203,7 +278,7 @@ int combine_nodes()
 					prev->next = two_nodes_ahead;
         }
 
-				add_node(temp,i-1);
+				add_node_from_combine(temp,i-1);
 				temp = two_nodes_ahead;
 			}
 			else
@@ -214,7 +289,6 @@ int combine_nodes()
 		}
 	}
 
-  print_free_nodes();
 	return 0;
 }
 
@@ -230,7 +304,7 @@ void print_free_nodes()
 
 		while(temp != NULL)
     { // Print Size of the list, number of the free nodes, and the starting address of the list
-			printf("List Size: %u Free Nodes: %d Address:%p \n",temp->size,temp->is_free,temp);
+			printf("List Size: %u Is Free: %d Address:%p Is Left:%d\n",temp->size,temp->is_free,temp,temp->is_left);
       printf("-------------------------------- \n");
 			temp = temp->next;
 		}
@@ -307,14 +381,16 @@ extern Addr my_malloc(unsigned int _length)
   combine_nodes(); // This cleans up the lists before we allocate anything.
 
   // Get alloc_size without header information
-  int alloc_size = get_block_size(_length);
-	if(alloc_size  == _length*2)
-  {
-		alloc_size = memory_size/2;
-  }
+  int min_alloc_size = get_block_size(_length);
 
   // Get the alloc_size after including the header size
-	alloc_size = get_block_size(alloc_size + sizeof(struct node));
+	int alloc_size = get_block_size(min_alloc_size + sizeof(struct node));
+
+  if (used_memory + alloc_size >= memory_size)
+  {
+    printf("ran out of memory, sorry\n");
+    return 0;
+  }
 
 	int index = log_base_2(memory_size / alloc_size);
 	int offset = 0;
@@ -336,6 +412,7 @@ extern Addr my_malloc(unsigned int _length)
   	}
 	}
 
+  used_memory += alloc_size;
   return return_addr;
   //return malloc((size_t)_length);
 }
@@ -346,6 +423,7 @@ extern int my_free(Addr _a)
   if(_a != NULL)
   {
     struct node* temp = (_a - sizeof(struct node));
+    used_memory -= temp->size;
     temp->is_free = true;
   }
   else
