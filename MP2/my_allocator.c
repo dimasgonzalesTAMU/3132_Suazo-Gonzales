@@ -386,12 +386,6 @@ extern Addr my_malloc(unsigned int _length)
   // Get the alloc_size after including the header size
 	int alloc_size = get_block_size(min_alloc_size + sizeof(struct node));
 
-  if (used_memory + alloc_size >= memory_size)
-  {
-    printf("ran out of memory, sorry\n");
-    return 0;
-  }
-
 	int index = log_base_2(memory_size / alloc_size);
 	int offset = 0;
 	Addr return_addr = NULL;
